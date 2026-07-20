@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Whack-a-Mole Game</title>
+
+<style>
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+}
+
+body{
+    font-family:Arial,sans-serif;
+    background:#90ee90;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    height:100vh;
+}
+
+h1{
+    margin-bottom:10px;
+}
+
+.info{
+    display:flex;
+    gap:40px;
+    margin-bottom:20px;
+    font-size:20px;
+    font-weight:bold;
+}
+
+.board{
+    display:grid;
+    grid-template-columns:repeat(3,120px);
+    gap:20px;
+    margin-bottom:20px;
+}
+
+.hole{
+    width:120px;
+    height:120px;
+    background:brown;
+    border-radius:50%;
+    cursor:pointer;
+    transition:0.2s;
+}
+
+.mole{
+    background:url("https://cdn-icons-png.flaticon.com/512/616/616554.png") center/70% no-repeat,brown;
+}
+
+button{
+    padding:10px 25px;
+    font-size:18px;
+    cursor:pointer;
+}
+</style>
+
+</head>
+<body>
+
+<h1>Whack-a-Mole</h1>
+
+<div class="info">
+    <div>Score: <span id="score">0</span></div>
+    <div>Time: <span id="time">30</span></div>
+</div>
+
+<div class="board">
+    <div class="hole"></div>
+    <div class="hole"></div>
+    <div class="hole"></div>
+    <div class="hole"></div>
+    <div class="hole"></div>
+    <div class="hole"></div>
+    <div class="hole"></div>
+    <div class="hole"></div>
+    <div class="hole"></div>
+</div>
+
+<button id="startBtn">Start Game</button>
+
+<script>
+
+const holes = document.querySelectorAll(".hole");
+const scoreText = document.getElementById("score");
+const timeText = document.getElementById("time");
+const startBtn = document.getElementById("startBtn");
+
+let score = 0;
+let timeLeft = 30;
+let molePosition = null;
+let moleInterval;
+let timerInterval;
+
+function moveMole(){
+
+    holes.forEach(hole=>{
+        hole.classList.remove("mole");
+    });
+
+    let random = Math.floor(Math.random()*9);
+
+    holes[random].classList.add("mole");
+    molePosition = random;
+}
+
+holes.forEach((hole,index)=>{
+
+    hole.addEventListener("click",()=>{
+
+        if(index===molePosition){
+
+            score++;
+            scoreText.textContent = score;
+
+            holes[index].classList.remove("mole");
+            molePosition = null;
+        }
+
+    });
+
+});
+
+function startGame(){
+
+    score = 0;
+    timeLeft = 30;
+
+    scoreText.textContent = score;
+    timeText.textContent = timeLeft;
+
+    clearInterval(moleInterval);
+    clearInterval(timerInterval);
+
+    moveMole();
+
+    moleInterval = setInterval(moveMole,700);
+
+    timerInterval = setInterval(()=>{
+
+        timeLeft--;
+        timeText.textContent = timeLeft;
+
+        if(timeLeft===0){
+
+            clearInterval(moleInterval);
+            clearInterval(timerInterval);
+
+            holes.forEach(hole=>hole.classList.remove("mole"));
+
+            alert("Game Over!\nYour Score: " + score);
+        }
+
+    },1000);
+
+}
+
+startBtn.addEventListener("click",startGame);
+
+</script>
+
+</body>
+</html>
