@@ -624,7 +624,7 @@ def plot_confusion_matrix(y_true, cluster_labels, class_names, plots_dir="plots"
 # Main pipeline
 # ---------------------------------------------------------------------------
 def main():
-    plots_dir = "plots"
+    plots_dir = "plots 8"
     os.makedirs(plots_dir, exist_ok=True)
 
     # ---- CONFIG: point this at your local UCI HAR Dataset folder ----

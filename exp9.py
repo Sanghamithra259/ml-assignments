@@ -1,18 +1,3 @@
-"""
-ICS1512 - Machine Learning Algorithms Laboratory
-Experiment 9: Perceptron vs Multilayer Perceptron (A/B Experiment)
-with Hyperparameter Tuning
-
-Model A: Single-Layer Perceptron (PLA), implemented from scratch.
-Model B: Multilayer Perceptron (MLP), via sklearn, with hyperparameter tuning.
-
-Dataset: English Handwritten Characters Dataset (Kaggle) - 3,410 images,
-62 classes (0-9, A-Z, a-z). Expected layout:
-    dataset_root/
-        english.csv        # columns: image, label  (image is a relative path)
-        Img/                # the actual .png files
-"""
-
 import os
 import itertools
 
@@ -38,13 +23,36 @@ from sklearn.metrics import (
 
 sns.set_style("whitegrid")
 RANDOM_STATE = 42
+PLOTS_DIR = "plot9"
+
+
+# ---------------------------------------------------------------------------
+# 0. Locate the dataset
+# ---------------------------------------------------------------------------
+def find_dataset_root(start=".", csv_name="english.csv"):
+    """
+    Walks down from `start` looking for english.csv.
+
+    Returns (csv_path, dataset_root) where dataset_root is the folder that
+    contains english.csv - which is also the folder the 'image' paths inside
+    the CSV are relative to (they look like 'Img/img001-001.png').
+    """
+    for dirpath, _, filenames in os.walk(start):
+        if csv_name in filenames:
+            return os.path.join(dirpath, csv_name), dirpath
+
+    raise FileNotFoundError(
+        f"Could not find {csv_name} anywhere under {os.path.abspath(start)}.\n"
+        "Download the English Handwritten Characters dataset from Kaggle\n"
+        "(dhruvildave/english-handwritten-characters-dataset) and unzip it here."
+    )
 
 
 # ---------------------------------------------------------------------------
 # 1. Data loading & preprocessing
 # ---------------------------------------------------------------------------
 def load_english_chars(csv_path, dataset_root, image_col="image", label_col="label",
-                        image_size=(32, 32), grayscale=True):
+                       image_size=(32, 32), grayscale=True):
     """
     Loads the English Handwritten Characters dataset.
 
@@ -81,6 +89,13 @@ def load_english_chars(csv_path, dataset_root, image_col="image", label_col="lab
 
     if missing > 0:
         print(f"Warning: {missing} image paths from the CSV were not found and were skipped.")
+        print("         (If this number is large, dataset_root is probably off by a folder level.)")
+
+    if not images:
+        raise RuntimeError(
+            f"No images could be loaded. Checked paths relative to '{dataset_root}'. "
+            "Expected an 'Img/' folder next to english.csv."
+        )
 
     X = np.array(images)
     y = np.array(labels)
@@ -118,6 +133,7 @@ class MulticlassPerceptron:
         rng = np.random.RandomState(random_state)
         self.W = rng.normal(scale=0.01, size=(n_classes, n_features + 1))  # +1 for bias
         self.train_error_history_ = []
+        self.val_error_history_ = []
 
     @staticmethod
     def _add_bias(X):
@@ -176,7 +192,7 @@ class MulticlassPerceptron:
         return Xb @ self.W.T
 
 
-def plot_pla_convergence(pla, plots_dir="plots"):
+def plot_pla_convergence(pla, plots_dir=PLOTS_DIR):
     fig, ax = plt.subplots(figsize=(8, 5))
     ax.plot(pla.train_error_history_, label="Train error", marker="o", markersize=3)
     if pla.val_error_history_:
@@ -255,7 +271,7 @@ def tune_mlp(X_train, y_train, X_val, y_val, param_grid, max_iter=100, random_st
     return results_df, best_model, best_params
 
 
-def plot_mlp_loss_curve(mlp, plots_dir="plots"):
+def plot_mlp_loss_curve(mlp, plots_dir=PLOTS_DIR):
     fig, ax = plt.subplots(figsize=(8, 5))
     ax.plot(mlp.loss_curve_)
     ax.set_xlabel("Iteration")
@@ -279,7 +295,7 @@ def evaluate_model(y_true, y_pred, name="Model"):
     return {"Model": name, "Accuracy": acc, "Precision": precision, "Recall": recall, "F1": f1}
 
 
-def plot_confusion(y_true, y_pred, class_names, title, filename, plots_dir="plots"):
+def plot_confusion(y_true, y_pred, class_names, title, filename, plots_dir=PLOTS_DIR):
     cm = confusion_matrix(y_true, y_pred, labels=range(len(class_names)))
     n = len(class_names)
     fig_size = max(10, n * 0.3)
@@ -298,7 +314,8 @@ def plot_confusion(y_true, y_pred, class_names, title, filename, plots_dir="plot
     plt.close(fig)
 
 
-def plot_roc_curves(y_true_idx, y_scores, n_classes, class_names, title, filename, plots_dir="plots"):
+def plot_roc_curves(y_true_idx, y_scores, n_classes, class_names, title, filename,
+                    plots_dir=PLOTS_DIR):
     """
     y_scores: array (n_samples, n_classes) of scores/probabilities
               (predict_proba for MLP, raw perceptron scores for PLA)
@@ -341,7 +358,7 @@ def plot_roc_curves(y_true_idx, y_scores, n_classes, class_names, title, filenam
     return roc_auc["micro"], roc_auc["macro"]
 
 
-def plot_metric_comparison(metrics_df, plots_dir="plots"):
+def plot_metric_comparison(metrics_df, plots_dir=PLOTS_DIR):
     metric_cols = ["Accuracy", "Precision", "Recall", "F1"]
     fig, axes = plt.subplots(1, len(metric_cols), figsize=(5 * len(metric_cols), 5))
 
@@ -359,12 +376,12 @@ def plot_metric_comparison(metrics_df, plots_dir="plots"):
 # Main pipeline
 # ---------------------------------------------------------------------------
 def main():
-    plots_dir = "plots"
+    plots_dir = PLOTS_DIR
     os.makedirs(plots_dir, exist_ok=True)
 
-    # ---- CONFIG: edit these for your local dataset location ----
-    DATASET_ROOT = "english_handwritten_characters"          # folder holding english.csv + Img/
-    CSV_PATH = os.path.join(DATASET_ROOT, "english.csv")
+    # ---- CONFIG ----
+    CSV_PATH, DATASET_ROOT = find_dataset_root(".")
+    print(f"Using dataset at: {os.path.abspath(DATASET_ROOT)}")
     IMAGE_SIZE = (32, 32)   # resize target; flattened -> 1024 features (grayscale)
 
     # 1. Load & preprocess
@@ -402,9 +419,9 @@ def main():
     pla_test_scores = pla.predict_scores(X_test)
     metrics_list.append(evaluate_model(y_test, pla_test_pred, name="PLA"))
     plot_confusion(y_test, pla_test_pred, class_names, "PLA - Confusion Matrix",
-                    "confusion_matrix_pla.png", plots_dir)
+                   "confusion_matrix_pla.png", plots_dir)
     plot_roc_curves(y_test, pla_test_scores, n_classes, class_names,
-                     "PLA - ROC Curves (micro/macro)", "roc_pla.png", plots_dir)
+                    "PLA - ROC Curves (micro/macro)", "roc_pla.png", plots_dir)
 
     # ---------------- Model B: MLP (with hyperparameter tuning) ----------------
     print("\n" + "=" * 60)
@@ -429,9 +446,9 @@ def main():
     mlp_test_proba = best_mlp.predict_proba(X_test)
     metrics_list.append(evaluate_model(y_test, mlp_test_pred, name="MLP (tuned)"))
     plot_confusion(y_test, mlp_test_pred, class_names, "MLP - Confusion Matrix",
-                    "confusion_matrix_mlp.png", plots_dir)
+                   "confusion_matrix_mlp.png", plots_dir)
     plot_roc_curves(y_test, mlp_test_proba, n_classes, class_names,
-                     "MLP - ROC Curves (micro/macro)", "roc_mlp.png", plots_dir)
+                    "MLP - ROC Curves (micro/macro)", "roc_mlp.png", plots_dir)
 
     # ---------------- A/B Comparison ----------------
     metrics_df = pd.DataFrame(metrics_list)
